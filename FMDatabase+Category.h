@@ -27,6 +27,8 @@ extern NSString * const DBNULL; // 设置成空指针
 
 @interface FMDatabaseQueue (Category)
 
+#pragma mark - -------------------------- Creat Table ------------------------------
+
 /**
  * 通过name创建数据库表
  *
@@ -46,6 +48,8 @@ extern NSString * const DBNULL; // 设置成空指针
 - (void)createTable:(NSString *)name
             columns:(NSArray *)columns
       primaryIndexs:(NSArray *)indexs;
+
+#pragma mark - -------------------------- Replace Into -----------------------------
 
 /**
  * 数据库添加数据 或者替换原数据
@@ -72,9 +76,17 @@ extern NSString * const DBNULL; // 设置成空指针
                infoArray:(NSArray <NSDictionary *>*)infos
                    block:(void(^)(BOOL success))block;
 
+#pragma mark - -------------------------- Select From ------------------------------
+
+/**
+ * 检索符合条件数据数量
+ *
+ * columns   需要的列字段 会记录在返回数据中
+ */
+- (NSInteger)selectCountFromTable:(NSString *)name where:(NSString *)where, ...;
+
 /**
  * 通过sql语句进行检索
- * 同步并发方法
  *
  * columns   需要的列字段 会记录在返回数据中
  */
@@ -119,6 +131,8 @@ extern NSString * const DBNULL; // 设置成空指针
                                                     orderBy:(NSString *)sortColumn
                                                        desc:(BOOL)isDesc;
 
+#pragma mark - -------------------------- Update Table -----------------------------
+
 /**
  * 通过数据库表name进行更新 不传检索条件则全部更新
  *
@@ -144,6 +158,8 @@ extern NSString * const DBNULL; // 设置成空指针
             columns:(NSArray<NSString *> *)columns
              values:(NSArray<NSString *> *)values
               where:(NSString *)where, ...;
+
+#pragma mark - -------------------------- Delete From ------------------------------
 
 /**
  * 通过数据库表name进行删除 不传检索条件则全删除

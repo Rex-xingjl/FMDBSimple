@@ -136,6 +136,24 @@ NSString * const DBNULL = @"_DBNULL";
     });
 }
 
+- (NSInteger)selectCountFromTable:(NSString *)name where:(NSString *)where, ... {
+    va_list args;
+    va_start(args, where);
+    NSString * whereString = [[NSString alloc] initWithFormat:where arguments:args];
+    va_end(args);
+    
+    NSString * sql = [NSString stringWithFormat:@"SELECT count(*) FROM %@%@", name, [self whereStringWith:whereString]];
+    __block NSInteger count = 0;
+    [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
+        FMResultSet * rs = [db executeQuery:sql];
+        while ([rs next]) {
+            count = [rs longForColumn:@"count(*)"];
+        }
+        [rs close];
+    }];
+    return count;
+}
+
 - (NSMutableArray <NSMutableDictionary *> *)selectFromTable:(NSString *)name requireColumns:(NSArray *)columns whereColumn:(NSString *)column in:(NSArray<NSString *> *)values {
     return [self selectFromTable:name requireColumns:columns whereColumn:column in:values orderBy:@"" desc:NO];
 }
