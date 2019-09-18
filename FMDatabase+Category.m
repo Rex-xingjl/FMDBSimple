@@ -175,15 +175,11 @@ NSString * const DBNULL = @"_DBNULL";
     return [self selectRequireColumns:columns withSql:sql];
 }
 
-- (NSMutableArray <NSMutableDictionary *> *)selectRequireColumns:(NSArray *)columns withSql:(NSString *)sql, ... {
-    va_list args;
-    va_start(args, sql);
-    NSString * sqlString = [[NSString alloc] initWithFormat:sql arguments:args];
-    va_end(args);
-    
+- (NSMutableArray <NSMutableDictionary *> *)selectRequireColumns:(NSArray *)columns withSql:(NSString *)sql {
+
     __block NSMutableArray * mdictArray = [[NSMutableArray alloc] init];
     [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
-        FMResultSet * rs = [db executeQuery:sqlString];
+        FMResultSet * rs = [db executeQuery:sql];
         while ([rs next]) {
             NSMutableDictionary * mdict = [[NSMutableDictionary alloc] init];
             for (NSString * column in columns) {
@@ -246,10 +242,11 @@ NSString * const DBNULL = @"_DBNULL";
 
 - (NSString *)updateStringColumn:(NSString *)column withValue:(NSString *)value  {
     NSString * column_value = @"";
-    if ([value isEqualToString:DBNULL] || ![kToStr(value) length]) {
+    NSString * valueString = kToStr(value);
+    if ([valueString isEqualToString:DBNULL] || ![valueString length]) {
         column_value = [NSString stringWithFormat:@"%@ = NULL", column];
     } else {
-        column_value = [NSString stringWithFormat:@"%@ = \"%@\"", column, value];
+        column_value = [NSString stringWithFormat:@"%@ = \"%@\"", column, valueString];
     }
     return column_value;
 }

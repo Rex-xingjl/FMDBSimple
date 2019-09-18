@@ -74,7 +74,7 @@ extern NSString * const DBNULL; // 设置成空指针
 - (void)replaceIntoTable:(NSString *)name
                  columns:(NSArray *)columns
                infoArray:(NSArray <NSDictionary *>*)infos
-                   block:(void(^)(BOOL success))block;
+                   block:(nullable void(^)(BOOL success))block;
 
 #pragma mark - -------------------------- Select From ------------------------------
 
@@ -91,7 +91,7 @@ extern NSString * const DBNULL; // 设置成空指针
  * columns   需要的列字段 会记录在返回数据中
  */
 - (NSMutableArray <NSMutableDictionary *> *)selectRequireColumns:(NSArray *)columns
-                                                         withSql:(NSString *)sql, ...;
+                                                         withSql:(NSString *)sql;
 
 /**
  * 通过数据库表name进行检索 不传检索条件则全部检索
