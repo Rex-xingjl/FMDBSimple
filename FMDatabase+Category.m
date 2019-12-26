@@ -207,7 +207,7 @@ NSString * const DBNULL = @"_DBNULL";
 }
 
 - (NSMutableArray <NSMutableDictionary *> *)selectFromTable:(NSString *)name requireColumns:(NSArray *)columns whereColumn:(NSString *)column in:(NSArray<NSString *> *)values {
-    return [self selectFromTable:name requireColumns:columns whereColumn:column in:values orderBy:@"" desc:NO];
+    return [self selectFromTable:name requireColumns:columns whereColumn:column in:values orderBy:nil desc:NO];
 }
 
 - (NSMutableArray <NSMutableDictionary *> *)selectFromTable:(NSString *)name requireColumns:(NSArray *)columns whereColumn:(NSString *)column in:(NSArray<NSString *> *)values orderBy:(NSString *)sortColumn desc:(BOOL)isDesc {
