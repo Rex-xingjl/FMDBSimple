@@ -1,10 +1,10 @@
-//
-//  FMDatabase+Category.m
-//  YXIM
-//
-//  Created by Rex on 2019/4/25.
-//  Copyright © 2019 yunxiang. All rights reserved.
-//
+    //
+    //  FMDatabase+Category.m
+    //  YXIM
+    //
+    //  Created by Rex on 2019/4/25.
+    //  Copyright © 2019 yunxiang. All rights reserved.
+    //
 
 #import "FMDatabase+Category.h"
 
@@ -53,35 +53,74 @@ NSString * const DBNULL = @"_DBNULL";
 
 @implementation FMDatabaseQueue (Category)
 
-- (void)createTable:(NSString *)name columns:(NSArray *)columns primaryIndex:(NSUInteger)index {
+- (BOOL)createTable:(NSString *)name byClass:(nonnull Class)cl primaryIndexs:(nonnull NSArray *)indexs {
+    unsigned int propertyCount;
+    objc_property_t * properties = class_copyPropertyList(cl, &propertyCount);
+    
+    if (propertyCount <= 0) {
+        kFMDB_Print(name, NO, @"COLUMNS KEY IS NULL") return NO;
+    }
+    
+    NSMutableArray * CLUMNs = [[NSMutableArray alloc] initWithCapacity:propertyCount];
+    NSMutableArray * KEYs = [[NSMutableArray alloc] initWithCapacity:indexs.count];
+    for (int i = 0; i < propertyCount; i++) {
+        objc_property_t property = properties[i];
+        NSString *property_name = @(property_getName(property));
+        if ([indexs containsObject:@(i)]) {
+            [KEYs addObject:property_name];
+        }
+        NSString * property_type = [NSObject propertyTypeWithChar:property_copyAttributeValue(property, "T")];
+        NSString * CLUMN = [NSString stringWithFormat:@"%@ %@", property_name, property_type];
+        [CLUMNs addObject:CLUMN];
+    }
+    free(properties);
+    
+    NSString * sql_head = [NSString stringWithFormat:@"CREATE TABLE IF NOT EXISTS %@ ", name];
+    NSString * sql_columns = [CLUMNs componentsJoinedByString:@", "];
+    NSString * sql_primarykey = [NSString stringWithFormat:@", PRIMARY KEY (%@)", [KEYs componentsJoinedByString:@", "]];
+    NSString * sql = [NSString stringWithFormat:@"%@(%@%@)", sql_head, sql_columns, sql_primarykey];
+    __block BOOL success;
+    [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
+        success = [db executeUpdate:sql];
+//        if (!success) { *rollback = YES; }
+        kFMDB_Print(name, success, sql)
+    }];
+    return success;
+}
+
+- (BOOL)createTable:(NSString *)name columns:(NSArray *)columns primaryIndex:(NSUInteger)index {
     if (columns.count <= 0) {
-        kFMDB_Print(name, NO, @"COLUMNS KEY IS NULL") return;
+        kFMDB_Print(name, NO, @"COLUMNS KEY IS NULL") return NO;
     }
     if (columns.count <= index) {
-        kFMDB_Print(name, NO, @"PRIMARY KEY IS INVALIDATE") return;
+        kFMDB_Print(name, NO, @"PRIMARY KEY IS INVALIDATE") return NO;
     }
     
     NSString * sql_head = [NSString stringWithFormat:@"CREATE TABLE IF NOT EXISTS %@ ", name];
     NSString * sql_columns = [[columns componentsJoinedByString:@" TEXT, "] stringByAppendingString:@" TEXT"];
     NSString * keyColumn = columns[index];
     sql_columns = [sql_columns stringByReplacingOccurrencesOfString:[keyColumn stringByAppendingString:@" TEXT,"] withString:[keyColumn stringByAppendingString:@" TEXT PRIMARY KEY NOT NULL,"]];
-
+    
     NSString * sql = [NSString stringWithFormat:@"%@(%@)", sql_head, sql_columns];
+    __block BOOL success;
     [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
-        BOOL success = [db executeUpdate:sql];
+        success = [db executeUpdate:sql];
+//        if (!success) { *rollback = YES; }
         kFMDB_Print(name, success, sql)
     }];
+    return success;
 }
 
-- (void)createTable:(NSString *)name columns:(NSArray *)columns primaryIndexs:(NSArray *)indexs {
+
+- (BOOL)createTable:(NSString *)name columns:(NSArray *)columns primaryIndexs:(NSArray *)indexs {
     if (columns.count <= 0) {
-        kFMDB_Print(name, NO, @"COLUMNS KEY IS NULL") return;
+        kFMDB_Print(name, NO, @"COLUMNS KEY IS NULL") return NO;
     }
     NSMutableArray * keyColumns = [[NSMutableArray alloc] init];
     for (int i = 0; i < indexs.count; i ++) {
         NSInteger index = [indexs[i] integerValue];
         if (columns.count <= i) {
-            kFMDB_Print(name, NO, @"PRIMARY KEY IS INVALIDATE") return;
+            kFMDB_Print(name, NO, @"PRIMARY KEY IS INVALIDATE") return NO;
         } else {
             [keyColumns addObject:columns[index]];
         }
@@ -90,26 +129,33 @@ NSString * const DBNULL = @"_DBNULL";
     NSString * sql_columns = [[columns componentsJoinedByString:@" TEXT, "] stringByAppendingString:@" TEXT"];
     NSString * sql_primarykey = [NSString stringWithFormat:@", PRIMARY KEY (%@)", [keyColumns componentsJoinedByString:@", "]];
     NSString * sql = [NSString stringWithFormat:@"%@(%@%@)", sql_head, sql_columns, sql_primarykey];
+    __block BOOL success;
     [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
-        BOOL success = [db executeUpdate:sql];
+        success = [db executeUpdate:sql];
+//        if (!success) { *rollback = YES; }
         kFMDB_Print(name, success, sql)
     }];
+    return success;
 }
 
-- (void)replaceIntoTable:(NSString *)name columns:(NSArray *)columns values:(NSArray *)values {
+- (BOOL)replaceIntoTable:(NSString *)name columns:(NSArray *)columns values:(NSArray *)values {
     NSString * keyString = [columns componentsJoinedByString:@", "];
     NSString * valueString = [values componentsJoinedByString:@"\", \""];
     NSString * sql = [NSString stringWithFormat:@"REPLACE INTO %@ (%@) VALUES (\"%@\")", name, keyString, valueString];
     sql = [sql stringByReplacingOccurrencesOfString:@"\"NULL\"" withString:@"NULL"];
+    __block BOOL success;
     [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
-        BOOL success = [db executeUpdate:sql];
+        success = [db executeUpdate:sql];
+//        if (!success) { *rollback = YES; }
         kFMDB_Print(name, success, sql)
     }];
+    return success;
 }
 
 - (void)replaceIntoTable:(NSString *)name columns:(NSArray *)columns infoArray:(NSArray <NSDictionary *>*)infos block:(void(^)(BOOL success))block {
     if (infos.count == 0) {
-        block(YES); return;
+        if (block) block(YES);
+        return;
     }
     
     fmdb_async_queue(^{
@@ -125,10 +171,11 @@ NSString * const DBNULL = @"_DBNULL";
         NSString * valuesqlsString = [[valuesqls componentsJoinedByString:@", "] stringByReplacingOccurrencesOfString:@"\"NULL\"" withString:@"NULL"];
         
         [SQL appendString:valuesqlsString];
-
+        
         [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
             BOOL success = [db executeUpdate:SQL];
             kFMDB_Print(name, success, SQL)
+//            if (!success) { *rollback = YES; }
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (block) block (success);
             });
@@ -137,10 +184,15 @@ NSString * const DBNULL = @"_DBNULL";
 }
 
 - (NSInteger)selectCountFromTable:(NSString *)name where:(NSString *)where, ... {
-    va_list args;
-    va_start(args, where);
-    NSString * whereString = [[NSString alloc] initWithFormat:where arguments:args];
-    va_end(args);
+    NSString * whereString;
+    if (where.length) {
+        va_list args;
+        va_start(args, where);
+        whereString = [[NSString alloc] initWithFormat:where arguments:args];
+        va_end(args);
+    } else {
+        whereString = nil;
+    }
     
     NSString * sql = [NSString stringWithFormat:@"SELECT count(*) FROM %@%@", name, [self whereStringWith:whereString]];
     __block NSInteger count = 0;
@@ -160,23 +212,28 @@ NSString * const DBNULL = @"_DBNULL";
 
 - (NSMutableArray <NSMutableDictionary *> *)selectFromTable:(NSString *)name requireColumns:(NSArray *)columns whereColumn:(NSString *)column in:(NSArray<NSString *> *)values orderBy:(NSString *)sortColumn desc:(BOOL)isDesc {
     NSString * whereStr = [self whereStringColumn:column withValues:values];
-    NSString * orderStr = [self orderStringColumn:column withValue:isDesc];
+    NSString * orderStr = [self orderStringColumn:sortColumn withValue:isDesc];
     NSString * sql = [NSString stringWithFormat:@"SELECT %@ FROM %@%@%@", [columns componentsJoinedByString:@", "], name, [self whereStringWith:whereStr], orderStr];
     return [self selectRequireColumns:columns withSql:sql];
 }
 
 - (NSMutableArray <NSMutableDictionary *> *)selectFromTable:(NSString *)name requireColumns:(NSArray *)columns where:(NSString *)where, ... {
-    va_list args;
-    va_start(args, where);
-    NSString * whereString = [[NSString alloc] initWithFormat:where arguments:args];
-    va_end(args);
+    NSString * whereString;
+    if (where.length) {
+        va_list args;
+        va_start(args, where);
+        whereString = [[NSString alloc] initWithFormat:where arguments:args];
+        va_end(args);
+    } else {
+        whereString = nil;
+    }
     
     NSString * sql = [NSString stringWithFormat:@"SELECT %@ FROM %@%@", [columns componentsJoinedByString:@", "], name, [self whereStringWith:whereString]];
     return [self selectRequireColumns:columns withSql:sql];
 }
 
 - (NSMutableArray <NSMutableDictionary *> *)selectRequireColumns:(NSArray *)columns withSql:(NSString *)sql {
-
+    
     __block NSMutableArray * mdictArray = [[NSMutableArray alloc] init];
     [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
         FMResultSet * rs = [db executeQuery:sql];
@@ -198,13 +255,19 @@ NSString * const DBNULL = @"_DBNULL";
     [self updateTable:name columns:columns values:values where:whereStr];
 }
 
-- (void)updateTable:(NSString *)name columns:(NSArray<NSString *> *)columns values:(NSArray<NSString *> *)values where:(NSString *)where, ... {
-    va_list args;
-    va_start(args, where);
-    NSString * whereString = [[NSString alloc] initWithFormat:where arguments:args];
-    va_end(args);
+- (BOOL)updateTable:(NSString *)name columns:(NSArray<NSString *> *)columns values:(NSArray<NSString *> *)values where:(NSString *)where, ... {
     
-    if (!columns.count) return;
+    NSString * whereString;
+    if (where.length) {
+        va_list args;
+        va_start(args, where);
+        whereString = [[NSString alloc] initWithFormat:where arguments:args];
+        va_end(args);
+    } else {
+        whereString = nil;
+    }
+    
+    if (!columns.count) return NO;
     NSMutableArray * setStrArray = [[NSMutableArray alloc] init];
     for (int i = 0; i < columns.count; i ++) {
         NSString * column_value = [self updateStringColumn:columns[i] withValue:values.count > i ? values[i] : DBNULL];
@@ -212,30 +275,41 @@ NSString * const DBNULL = @"_DBNULL";
     }
     NSString * setStr = [setStrArray componentsJoinedByString:@", "];
     NSString * sql = [NSString stringWithFormat:@"UPDATE %@ SET %@%@", name, setStr, [self whereStringWith:whereString]];
+    __block BOOL success;
     [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
-        BOOL success = [db executeUpdate:sql];
+        success = [db executeUpdate:sql];
+//        if (!success) { *rollback = YES; }
         kFMDB_Print(name, success, sql);
     }];
+    return success;
 }
 
-- (void)deleteFromTable:(NSString *)name whereColumn:(NSString *)column in:(NSArray<NSString *> *)values {
-    if (values.count == 0) return;
+- (BOOL)deleteFromTable:(NSString *)name whereColumn:(NSString *)column in:(NSArray<NSString *> *)values {
+    if (values.count == 0) return YES;
     
     NSString * whereStr = [self whereStringColumn:column withValues:values];
-    [self deleteFromTable:name where:whereStr];
+    return [self deleteFromTable:name where:whereStr];
 }
 
-- (void)deleteFromTable:(NSString *)name where:(NSString *)where, ... {
-    va_list args;
-    va_start(args, where);
-    NSString * whereString = [[NSString alloc] initWithFormat:where arguments:args];
-    va_end(args);
+- (BOOL)deleteFromTable:(NSString *)name where:(NSString *)where, ... {
+    NSString * whereString;
+    if (where.length) {
+        va_list args;
+        va_start(args, where);
+        whereString = [[NSString alloc] initWithFormat:where arguments:args];
+        va_end(args);
+    } else {
+        whereString = nil;
+    }
     
     NSString * sql = [NSString stringWithFormat:@"DELETE FROM %@%@", name, [self whereStringWith:whereString]];
+    __block BOOL success;
     [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
-        BOOL success = [db executeUpdate:sql];
+        success = [db executeUpdate:sql];
+//        if (!success) { *rollback = YES; }
         kFMDB_Print(name, success, sql)
     }];
+    return success;
 }
 
 #pragma mark - private
@@ -265,7 +339,7 @@ NSString * const DBNULL = @"_DBNULL";
     return whereStr;
 }
 
-- (NSString *)whereStringWith:(NSString *)string, ... {
+- (NSString *)whereStringWith:(NSString *)string {
     NSString * whereStr = @"";
     if (string.length > 0) {
         whereStr = [@" WHERE " stringByAppendingString:string];

@@ -33,9 +33,19 @@ extern NSString * const DBNULL; // 设置成空指针
  * 通过name创建数据库表
  *
  * columns 表的列字段
+ * indexs  主键在columns中的位置
+ */
+- (BOOL)createTable:(NSString *)name
+            byClass:(nonnull Class)cl
+      primaryIndexs:(NSArray *)indexs;
+
+/**
+ * 通过name创建数据库表
+ *
+ * columns 表的列字段
  * index   主键在columns中的位置
  */
-- (void)createTable:(NSString *)name
+- (BOOL)createTable:(NSString *)name
             columns:(NSArray *)columns
        primaryIndex:(NSUInteger)index;
 
@@ -45,7 +55,7 @@ extern NSString * const DBNULL; // 设置成空指针
  * columns  表的列字段
  * indexs   联合主键在columns中的位置
  */
-- (void)createTable:(NSString *)name
+- (BOOL)createTable:(NSString *)name
             columns:(NSArray *)columns
       primaryIndexs:(NSArray *)indexs;
 
@@ -59,7 +69,7 @@ extern NSString * const DBNULL; // 设置成空指针
  * columns  待更新的列集合
  * values   待更新的数值集合
  */
-- (void)replaceIntoTable:(NSString *)name
+- (BOOL)replaceIntoTable:(NSString *)name
                  columns:(NSArray *)columns
                   values:(NSArray *)values;
 
@@ -141,7 +151,7 @@ extern NSString * const DBNULL; // 设置成空指针
  * column     检索条件字段
  * value      条件的值
  */
-- (void)updateTable:(NSString *)name
+- (BOOL)updateTable:(NSString *)name
             columns:(NSArray<NSString *> *)columns
              values:(NSArray<NSString *> *)values
         whereColumn:(NSString * __nullable)column
@@ -154,7 +164,7 @@ extern NSString * const DBNULL; // 设置成空指针
  * values     待更新的数值
  * whereString 数据库where语句的条件 例如 @"id = 1 && name = '2'"
  */
-- (void)updateTable:(NSString *)name
+- (BOOL)updateTable:(NSString *)name
             columns:(NSArray<NSString *> *)columns
              values:(NSArray<NSString *> *)values
               where:(NSString *)where, ...;
@@ -167,7 +177,7 @@ extern NSString * const DBNULL; // 设置成空指针
  * column     字段名称
  * values     满足条件的集合
  */
-- (void)deleteFromTable:(NSString *)name
+- (BOOL)deleteFromTable:(NSString *)name
             whereColumn:(NSString * __nullable)column
                      in:(NSArray <NSString *> * __nullable)values;
 
@@ -176,7 +186,7 @@ extern NSString * const DBNULL; // 设置成空指针
  *
  * whereString 数据库where语句的条件 例如 @"id = 1 AND name = '2'"
  */
-- (void)deleteFromTable:(NSString *)name
+- (BOOL)deleteFromTable:(NSString *)name
                   where:(NSString *)where, ...;
 
 @end
