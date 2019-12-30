@@ -141,6 +141,14 @@ extern NSString * const DBNULL; // 设置成空指针
                                                     orderBy:(NSString *)sortColumn
                                                        desc:(BOOL)isDesc;
 
+/**
+ *  优先key-column 如果key—column值为空 则 取value-column的值
+ */
+- (NSMutableArray <NSMutableDictionary *> *)selectFromTable:(NSString *)name
+                                             requireColumns:(NSArray *)columns
+                                 displaceNULLColumnByColumn:(NSDictionary *)column_column
+                                                      where:(NSString *)where, ...;
+
 #pragma mark - -------------------------- Update Table -----------------------------
 
 /**

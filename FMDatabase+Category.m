@@ -169,7 +169,6 @@ NSString * const DBNULL = @"_DBNULL";
             [valuesqls addObject:valuesString];
         }
         NSString * valuesqlsString = [[valuesqls componentsJoinedByString:@", "] stringByReplacingOccurrencesOfString:@"\"NULL\"" withString:@"NULL"];
-        
         [SQL appendString:valuesqlsString];
         
         [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
@@ -232,6 +231,27 @@ NSString * const DBNULL = @"_DBNULL";
     return [self selectRequireColumns:columns withSql:sql];
 }
 
+- (NSMutableArray <NSMutableDictionary *> *)selectFromTable:(NSString *)name requireColumns:(nonnull NSArray *)columns displaceNULLColumnByColumn:(nonnull NSDictionary *)column_column where:(nonnull NSString *)where, ... {
+    NSString * whereString;
+    if (where.length) {
+        va_list args;
+        va_start(args, where);
+        whereString = [[NSString alloc] initWithFormat:where arguments:args];
+        va_end(args);
+    } else {
+        whereString = nil;
+    }
+    
+    NSString * sql = [NSString stringWithFormat:@"SELECT %@ FROM %@%@", [columns componentsJoinedByString:@", "], name, [self whereStringWith:whereString]];
+    if (column_column.count) {
+        for (NSString * key in column_column) {
+            NSString * value = column_column[key];
+            sql = [sql stringByReplacingOccurrencesOfString:key withString:[NSString stringWithFormat:@"(CASE WHEN %@ IS NULL THEN %@ WHEN %@ = '' THEN %@ ELSE %@ END)AS %@", key, value, key, value, key, key]];
+        }
+    }
+    return [self selectRequireColumns:columns withSql:sql];
+}
+
 - (NSMutableArray <NSMutableDictionary *> *)selectRequireColumns:(NSArray *)columns withSql:(NSString *)sql {
     
     __block NSMutableArray * mdictArray = [[NSMutableArray alloc] init];
@@ -250,7 +270,7 @@ NSString * const DBNULL = @"_DBNULL";
 }
 
 - (void)updateTable:(NSString *)name columns:(NSArray<NSString *> *)columns values:(NSArray<NSString *> *)values whereColumn:(NSString *)column equal:(NSString *)value {
-    if (!columns.count) return;
+    if (columns.count <= 0) return;
     NSString * whereStr = [self whereStringColumn:column withValues:@[kFMDB_ToStr(value)]];
     [self updateTable:name columns:columns values:values where:whereStr];
 }
@@ -267,7 +287,7 @@ NSString * const DBNULL = @"_DBNULL";
         whereString = nil;
     }
     
-    if (!columns.count) return NO;
+    if (columns.count <= 0) return NO;
     NSMutableArray * setStrArray = [[NSMutableArray alloc] init];
     for (int i = 0; i < columns.count; i ++) {
         NSString * column_value = [self updateStringColumn:columns[i] withValue:values.count > i ? values[i] : DBNULL];
@@ -327,7 +347,7 @@ NSString * const DBNULL = @"_DBNULL";
 
 - (NSString *)whereStringColumn:(NSString *)column withValues:(NSArray *)values {
     NSString * whereStr = @"";
-    if (column || values.count) {
+    if (column || values.count > 0) {
         if (values.count > 1) {
             NSString * valuesStr = [values componentsJoinedByString:@"', '"];
             valuesStr = [NSString stringWithFormat:@"'%@'", valuesStr];
