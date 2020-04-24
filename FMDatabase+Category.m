@@ -275,8 +275,73 @@ NSString * const DBNULL = @"_DBNULL";
     [self updateTable:name columns:columns values:values where:whereStr];
 }
 
-- (BOOL)updateTable:(NSString *)name columns:(NSArray<NSString *> *)columns values:(NSArray<NSString *> *)values where:(NSString *)where, ... {
+
+- (BOOL)insertOrUpdateTable:(NSString *)name columns:(NSArray<NSString *> *)columns infoArray:(NSArray <NSDictionary *>*)infos primaryIndexs:(NSArray *)indexs block:(void(^)(BOOL success))block {
     
+    if (columns.count <= 0 || indexs.count <= 0) return NO;
+    
+    fmdb_async_queue(^{
+        
+        // 插入语句的拼接 （update前检查是否有不存在的条目 将主键利用insert写入）
+        NSMutableString * insertSql = [[NSMutableString alloc] init];
+        NSMutableArray * keyColumns = [[NSMutableArray alloc] initWithCapacity:indexs.count];
+        for (id index in indexs) {
+            [keyColumns addObject:columns[[index integerValue]]];
+        }
+        NSString * keyColumnsStr = [keyColumns componentsJoinedByString:@","];
+        [insertSql appendFormat:@"INSERT or IGNORE INTO %@ (%@) VALUES ", name, keyColumnsStr];
+        NSMutableArray * valuesqls = [[NSMutableArray alloc] init];
+        for (NSDictionary * info in infos) {
+            NSArray * valuesByInfo = [info objectsForKeys:keyColumns notFoundMarker:@"NULL"];
+            NSString * valuesString = [NSString stringWithFormat:@"(\"%@\")", [valuesByInfo componentsJoinedByString:@"\", \""]];
+            [valuesqls addObject:valuesString];
+        }
+        NSString * valuesqlsString = [[valuesqls componentsJoinedByString:@", "] stringByReplacingOccurrencesOfString:@"\"NULL\"" withString:@"NULL"];
+        [insertSql appendString:valuesqlsString];
+        
+        // 更新语句的拼接 （逐条更新要写入的内容）
+        NSMutableArray * updateSqls = [[NSMutableArray alloc] init];
+        for (NSDictionary * info in infos) {
+            NSMutableArray * setStrArray = [[NSMutableArray alloc] init];
+            NSMutableArray * whereStrArray = [[NSMutableArray alloc] init];
+            for (NSInteger i = 0; i < columns.count; i ++) {
+                NSString * column = columns[i];
+                NSString * column_value = [self updateStringColumn:column withValue:info[column]];
+                if ([indexs containsObject:@(i)]) {
+                    [whereStrArray addObject:column_value];
+                } else {
+                    [setStrArray addObject:column_value];
+                }
+            }
+            NSString * setStr = [setStrArray componentsJoinedByString:@", "];
+            NSString * whereStr = [whereStrArray componentsJoinedByString:@" AND "];
+            NSString * sql = [NSString stringWithFormat:@"UPDATE %@ SET %@%@", name, setStr, [self whereStringWith:whereStr]];
+            [updateSqls addObject:sql];
+        }
+        
+        // 事务处理 有任意一次失败 则返回失败 但操作仍进行完毕 
+        [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
+            BOOL success = YES;
+            
+            BOOL insert_success = [db executeUpdate:insertSql];
+            kFMDB_Print(name, insert_success, insertSql);
+            
+            BOOL update_success = YES;
+            for (NSString * sql in updateSqls) {
+                BOOL update_success_once = [db executeUpdate:sql];
+                if (!update_success_once) update_success = NO;
+            }
+            kFMDB_Print(name, update_success, [updateSqls componentsJoinedByString:@"\n "]);
+            
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (block) block (insert_success && update_success);
+            });
+        }];
+    });
+}
+    
+
+- (BOOL)updateTable:(NSString *)name columns:(NSArray<NSString *> *)columns values:(NSArray<NSString *> *)values where:(NSString *)where, ... {
     NSString * whereString;
     if (where.length) {
         va_list args;

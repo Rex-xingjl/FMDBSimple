@@ -177,6 +177,19 @@ extern NSString * const DBNULL; // 设置成空指针
              values:(NSArray<NSString *> *)values
               where:(NSString *)where, ...;
 
+/**
+ *  通过数据库表name进行批量更新 未存在条目将自动补充为indexs对应的主键
+ *
+ *  columns 待更新字段
+ *  infos 待更新的数据数据
+ *  indexs 条件字段和值 在columns以及infos的values中序号
+ */
+- (BOOL)insertOrUpdateTable:(NSString *)name
+                    columns:(NSArray<NSString *> *)columns
+                  infoArray:(NSArray <NSDictionary *>*)infos
+              primaryIndexs:(NSArray *)indexs
+                      block:(void(^)(BOOL success))block;
+
 #pragma mark - -------------------------- Delete From ------------------------------
 
 /**
