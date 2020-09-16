@@ -25,7 +25,8 @@ extern NSString * const DBNULL; // 设置成空指针
 
 @end
 
-@interface FMDatabaseQueue (Category)
+
+@interface FMDatabaseQueue (DataManager)
 
 #pragma mark - -------------------------- Creat Table ------------------------------
 
@@ -184,7 +185,7 @@ extern NSString * const DBNULL; // 设置成空指针
  *  infos 待更新的数据数据
  *  indexs 条件字段和值 在columns以及infos的values中序号
  */
-- (BOOL)insertOrUpdateTable:(NSString *)name
+- (void)insertOrUpdateTable:(NSString *)name
                     columns:(NSArray<NSString *> *)columns
                   infoArray:(NSArray <NSDictionary *>*)infos
               primaryIndexs:(NSArray *)indexs
@@ -211,5 +212,25 @@ extern NSString * const DBNULL; // 设置成空指针
                   where:(NSString *)where, ...;
 
 @end
+
+
+@interface FMDatabaseQueue (Migrator)
+
+/**
+ *  新增表中列数量
+ *
+ *  columns 添加列数组  示例:  @[@"name TEXT", @"age INTEGER"];
+ */
+- (BOOL)alterTable:(NSString *)name addColumnsIfNotExists:(NSString *)columns;
+
+/**
+ *  删除表中列数量
+ *
+ *  columns 删除列数组  示例:  @[@"name", @"age"];
+ */
+- (BOOL)alterTable:(NSString *)name dropColumnsIfExists:(NSString *)columns;
+
+@end
+
 
 NS_ASSUME_NONNULL_END

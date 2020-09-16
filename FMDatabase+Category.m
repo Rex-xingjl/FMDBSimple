@@ -37,7 +37,7 @@ void fmdb_sync_queue(dispatch_block block) {
 
 NSString * const DBNULL = @"_DBNULL";
 
-@implementation FMDatabase (Category)
+@implementation FMDatabase (DataManager)
 
 + (id)databaseWithName:(NSString *)name path:(NSString *)path {
     BOOL isExist = [[NSFileManager defaultManager] fileExistsAtPath:path];
@@ -276,10 +276,12 @@ NSString * const DBNULL = @"_DBNULL";
 }
 
 
-- (BOOL)insertOrUpdateTable:(NSString *)name columns:(NSArray<NSString *> *)columns infoArray:(NSArray <NSDictionary *>*)infos primaryIndexs:(NSArray *)indexs block:(void(^)(BOOL success))block {
+- (void)insertOrUpdateTable:(NSString *)name columns:(NSArray<NSString *> *)columns infoArray:(NSArray <NSDictionary *>*)infos primaryIndexs:(NSArray *)indexs block:(void(^)(BOOL success))block {
     
-    if (columns.count <= 0 || indexs.count <= 0) return NO;
-    
+    if (columns.count <= 0 || indexs.count <= 0) {
+        if (block) block(YES);
+        return;
+    }
     fmdb_async_queue(^{
         
         // 插入语句的拼接 （update前检查是否有不存在的条目 将主键利用insert写入）
@@ -321,8 +323,6 @@ NSString * const DBNULL = @"_DBNULL";
         
         // 事务处理 有任意一次失败 则返回失败 但操作仍进行完毕 
         [self inTransaction:^(FMDatabase * _Nonnull db, BOOL * _Nonnull rollback) {
-            BOOL success = YES;
-            
             BOOL insert_success = [db executeUpdate:insertSql];
             kFMDB_Print(name, insert_success, insertSql);
             
@@ -438,6 +438,43 @@ NSString * const DBNULL = @"_DBNULL";
         orderStr = [NSString stringWithFormat:@" ORDER BY %@ %@", column, isDesc ? @"DESC" : @"ASC"];
     }
     return orderStr;
+}
+
+@end
+
+
+@implementation FMDatabaseQueue (Migrator)
+
+- (BOOL)alterTable:(NSString *)name addColumnsIfNotExists:(NSString *)columns {
+
+    __block BOOL success_ = YES;
+    [self inTransaction:^(FMDatabase *db, BOOL *rollback) {
+        for (NSString * column in columns) {
+            NSArray * columnSep = [column componentsSeparatedByString:@" "];
+            if (![db columnExists:columnSep[0] inTableWithName:name]) {
+                NSString * sql = [NSString stringWithFormat:@"ALTER TABLE %@ ADD COLUMN %@", name, column];
+                BOOL success = [db executeUpdate:sql];
+                kFMDB_Print(name, success, sql)
+                if (!success) success_ = NO;
+            }
+        }
+    }];
+    return success_;
+}
+
+- (BOOL)alterTable:(NSString *)name dropColumnsIfExists:(NSString *)columns {
+    __block BOOL success_ = YES;
+    [self inTransaction:^(FMDatabase *db, BOOL *rollback) {
+        for (NSString * column in columns) {
+            if ([db columnExists:column inTableWithName:name]) {
+                NSString * sql = [NSString stringWithFormat:@"ALTER TABLE %@ DROP COLUMN %@", column];
+                BOOL success = [db executeUpdate:sql];
+                kFMDB_Print(name, success, sql)
+                if (!success) success_ = NO;
+            }
+        }
+    }];
+    return success_;
 }
 
 @end
